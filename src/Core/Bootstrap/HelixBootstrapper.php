@@ -2,7 +2,7 @@
 
 namespace Helix\Core\Bootstrap;
 
-use Helix\Core\Config\ConfigLoader;
+use Helix\Core\Conf\ConfigLoader;
 use Helix\Core\Container\HelixContainer;
 use Helix\Core\Contracts\BootstrapperInterface;
 use Psr\Container\ContainerInterface;

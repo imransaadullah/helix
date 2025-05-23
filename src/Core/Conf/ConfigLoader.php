@@ -1,5 +1,5 @@
 <?php
-namespace Helix\Core\Config;
+namespace Helix\Core\Conf;
 
 use Helix\Core\Contracts\ConfigInterface;
 use Helix\Core\Exceptions\ConfigException;
@@ -17,7 +17,7 @@ use Psr\SimpleCache\CacheInterface;
  * - Configuration caching via PSR-16 cache
  * - Validation of required configuration keys
  * 
- * @package Helix\Core\Config
+ * @package Helix\Core\Conf
  */
 final class ConfigLoader implements ConfigInterface
 {
