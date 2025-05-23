@@ -1,0 +1,9 @@
+composer.lock
+vendor/
+tests/
+.env
+logs/
+public/
+configurations/
+storage/
+/Technical*.md
