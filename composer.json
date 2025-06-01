@@ -1,6 +1,6 @@
 {
     "name": "progrmanial/helix",
-    "type": "project",
+    "type": "library",
     "require": {
         "php": "^8.2",
         "ext-json": "*",
