@@ -1,6 +1,7 @@
 {
     "name": "progrmanial/helix",
     "type": "library",
+    "description": "Helix is a PHP library designed to simplify the development of web applications by providing a set of tools and utilities for common tasks such as routing, middleware handling, and dependency injection.",
     "require": {
         "php": "^8.2",
         "ext-json": "*",
@@ -20,27 +21,37 @@
         "phpunit/phpunit": "^10.0",
         "phpstan/phpstan": "^1.10",
         "mockery/mockery": "^1.6",
-        "symfony/var-dumper": "^6.4"
+        "symfony/var-dumper": "^6.4",
+        "vimeo/psalm": "^5.0",
+        "friendsofphp/php-cs-fixer": "^3.0"
     },
     "autoload": {
         "psr-4": {
-            "Helix\\": "src/",
-            "Helix\\Tests\\": "tests/"
-        },
-        "files": [
-            "src/Helpers/functions.php"
-        ]
+            "Helix\\": "src/"
+        }
     },
     "config": {
         "sort-packages": true,
         "allow-plugins": {
             "php-http/discovery": true
-        }
+        },
+        "platform-check": false
     },
     "authors": [
         {
             "name": "imransaadullah",
             "email": "imransaadullah@gmail.com"
         }
+    ],
+    "license": "MIT",
+    "keywords": [
+        "php",
+        "library",
+        "web",
+        "application",
+        "development",
+        "routing",
+        "middleware",
+        "dependency injection"
     ]
 }
