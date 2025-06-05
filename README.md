@@ -8,7 +8,7 @@ Helix is a modern PHP library designed to simplify web application development b
 - **Role-Based Access Control (RBAC)**: Built-in security with policy engine
 - **Hybrid Deployment Support**: Flexible deployment options (SaaS, on-premise, and edge)
 - **Modern Architecture**:
-  - PSR-11 compliant Dependency Injection
+  - Custom PSR-11 compliant Dependency Injection Container
   - Event-driven architecture with hooks
   - Multi-tenant support with container-level isolation
   - Phase-based initialization system
@@ -27,23 +27,224 @@ Install Helix using Composer:
 composer require progrmanial/helix
 ```
 
-## Key Components
+## Component Usage Guide
 
-- **Bootstrapper**: Priority-based phase execution system with critical failure handling
-- **Service Container**: PSR-11 compliant dependency injection container
-- **Event System**: Flexible event-driven architecture
-- **Module System**: Declarative module manifests with dependency resolution
-- **Security**: JWT authentication and policy-based RBAC
+### Dependency Injection Container
+
+The container implements PSR-11 and provides advanced dependency management:
+
+```php
+use Helix\Core\Container\HelixContainer;
+
+$container = new HelixContainer();
+
+// Simple binding
+$container->add(LoggerInterface::class, FileLogger::class);
+
+// Singleton binding
+$container->singleton(Database::class, function() {
+    return new Database('connection_string');
+});
+
+// Factory binding
+$container->factory(Request::class, function() {
+    return Request::createFromGlobals();
+});
+
+// Contextual binding
+$container->when(UserController::class)
+    ->needs(LoggerInterface::class)
+    ->give(function() {
+        return new FileLogger('users.log');
+    });
+
+// Resolving dependencies
+$userController = $container->get(UserController::class);
+```
+
+### Database ORM
+
+The database layer provides an intuitive Active Record pattern implementation:
+
+```php
+use Helix\Database\Model;
+use Helix\Database\Relations\HasMany;
+
+class User extends Model
+{
+    protected static string $table = 'users';
+    protected static bool $timestamps = true;
+    protected static bool $softDeletes = true;
+
+    public function posts(): HasMany
+    {
+        return $this->hasMany(Post::class);
+    }
+}
+
+// Create
+$user = User::create([
+    'name' => 'John Doe',
+    'email' => 'john@example.com'
+]);
+
+// Read
+$user = User::find(1);
+$activeUsers = User::where('status', '=', 'active')->get();
+
+// Update
+$user->name = 'Jane Doe';
+$user->save();
+
+// Delete
+$user->delete();
+
+// Relationships
+$userPosts = $user->posts()->where('status', '=', 'published')->get();
+```
+
+### Query Builder
+
+For more complex queries, use the fluent query builder:
+
+```php
+use Helix\Database\QueryBuilder;
+
+$users = QueryBuilder::table('users')
+    ->select(['id', 'name', 'email'])
+    ->where('status', '=', 'active')
+    ->where(function($query) {
+        $query->where('role', '=', 'admin')
+              ->orWhere('role', '=', 'moderator');
+    })
+    ->orderBy('created_at', 'DESC')
+    ->limit(10)
+    ->get();
+
+// Joins
+$posts = QueryBuilder::table('posts')
+    ->join('users', 'posts.user_id', '=', 'users.id')
+    ->where('users.status', '=', 'active')
+    ->select(['posts.*', 'users.name as author'])
+    ->get();
+```
+
+### Router & Middleware
+
+The routing system supports clean and flexible route definitions:
+
+```php
+use Helix\Routing\Router;
+use Helix\Http\Request;
+use Helix\Http\Response;
+
+$router = new Router($container);
+
+// Basic routes
+$router->get('/', [HomeController::class, 'index']);
+$router->post('/users', [UserController::class, 'store']);
+
+// Route groups
+$router->group('/api', function(Router $router) {
+    $router->group('/v1', function(Router $router) {
+        $router->get('/users', [UserApiController::class, 'index']);
+        $router->post('/users', [UserApiController::class, 'store']);
+    }, ['api.auth']); // Apply middleware to group
+});
+
+// Custom middleware
+class AuthMiddleware
+{
+    public function handle(Request $request, callable $next): Response
+    {
+        if (!$request->hasValidToken()) {
+            return new Response(401, ['Unauthorized']);
+        }
+        return $next($request);
+    }
+}
+
+$router->addMiddleware('auth', AuthMiddleware::class);
+```
+
+### Event System
+
+The event system enables loose coupling between components:
+
+```php
+use Helix\Events\Dispatcher;
+use Helix\Events\Event;
+
+class UserRegistered extends Event
+{
+    public function __construct(public readonly User $user) {}
+}
+
+// Register listeners
+$dispatcher = new Dispatcher();
+$dispatcher->addListener(UserRegistered::class, function(UserRegistered $event) {
+    // Send welcome email
+    $mailer->sendWelcomeEmail($event->user);
+});
+
+// Dispatch events
+$dispatcher->dispatch(new UserRegistered($user));
+```
+
+### Configuration Management
+
+Handle configuration with environment support:
+
+```php
+use Helix\Core\Conf\ConfigLoader;
+
+$config = new ConfigLoader();
+
+// Load configuration
+$config->load(
+    envFile: '.env',
+    configFiles: [
+        'config/database.php',
+        'config/app.php'
+    ],
+    useEnvironmentSuffix: true
+);
+
+// Access configuration
+$dbHost = $config->get('database.host');
+$appName = $config->get('app.name', 'Helix App'); // With default value
+```
+
+### Multi-tenancy
+
+Handle multiple tenants in your application:
+
+```php
+use Helix\Database\ConnectionManager;
+
+// Setup connections
+$manager = new ConnectionManager();
+$manager->addConnection(
+    'tenant1',
+    'mysql://localhost/tenant1_db',
+    'user',
+    'password',
+    ['charset' => 'utf8mb4']
+);
+
+// Switch connections
+Model::setConnection($manager->getConnection('tenant1'));
+```
 
 ## Dependencies
 
 ### Core Dependencies
 - firebase/php-jwt: JWT authentication
 - guzzlehttp/psr7: PSR-7 HTTP message implementation
-- league/container: Dependency injection container
 - monolog/monolog: Logging
 - symfony/event-dispatcher: Event handling
 - vlucas/phpdotenv: Environment configuration
+- ramsey/uuid: UUID generation
 
 ### Development Dependencies
 - phpunit/phpunit: Testing
