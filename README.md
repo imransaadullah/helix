@@ -101,6 +101,13 @@ $user->delete();
 
 // Relationships
 $userPosts = $user->posts()->where('status', '=', 'published')->get();
+
+// Soft deletes & restore
+$trashed = User::withTrashed()->find($user->getKey());
+$trashed->restore();
+
+// Eager loading
+$users = User::query()->with('posts.comments')->get();
 ```
 
 ### Query Builder
@@ -235,6 +242,17 @@ $manager->addConnection(
 // Switch connections
 Model::setConnection($manager->getConnection('tenant1'));
 ```
+
+## Testing
+
+Run the automated test suite after installing dependencies:
+
+```bash
+composer install
+vendor/bin/phpunit
+```
+
+> **Note:** The database integration tests rely on the PDO SQLite driver. If it is not available, the suite will automatically skip those tests.
 
 ## Dependencies
 

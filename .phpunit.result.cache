@@ -1,0 +1,1 @@
+{"version":1,"defects":{"Helix\\Tests\\Database\\ModelTest::testSoftDeleteLifecycle":1,"Helix\\Tests\\Database\\ModelTest::testEagerLoadedRelationsAreCached":1},"times":{"Helix\\Tests\\Database\\ModelTest::testSoftDeleteLifecycle":0,"Helix\\Tests\\Database\\ModelTest::testEagerLoadedRelationsAreCached":0}}

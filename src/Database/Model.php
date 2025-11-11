@@ -49,7 +49,7 @@ abstract class Model
     public function __set($key, $value)
     {
         if (method_exists($this, $key)) {
-            $this->relations[$key] = $value;
+            $this->setRelation($key, $value);
         } else {
             $this->attributes[$key] = $value;
         }
@@ -196,12 +196,15 @@ abstract class Model
             return true;
         }
 
-        $query = static::query()
-            ->where(static::$primaryKey, '=', $this->getKey());
+        $isSoftDeleting = static::$softDeletes;
+        $isCurrentlyDeleted = $isSoftDeleting
+            && (($this->original[static::$deletedAtColumn] ?? null) !== null);
 
-        if (static::$softDeletes) {
-            $query->whereNull(static::$deletedAtColumn);
-        }
+        $query = $isCurrentlyDeleted
+            ? static::withTrashed()
+            : static::query();
+
+        $query->where(static::$primaryKey, '=', $this->getKey());
 
         return $query->update($dirty);
     }
@@ -235,11 +238,31 @@ abstract class Model
             return false;
         }
 
-        $this->attributes[static::$deletedAtColumn] = $this->freshTimestamp();
+        $timestamp = $this->freshTimestamp();
 
-        $saved = $this->save();
+        if (static::$timestamps) {
+            $this->setUpdatedAt($timestamp);
+        }
 
-        if ($saved) {
+        $attributes = [
+            static::$deletedAtColumn => $timestamp,
+        ];
+
+        if (static::$timestamps) {
+            $attributes['updated_at'] = $timestamp;
+        }
+
+        $deleted = static::withTrashed()
+            ->where(static::$primaryKey, '=', $this->getKey())
+            ->update($attributes);
+
+        if ($deleted) {
+            $this->attributes[static::$deletedAtColumn] = $timestamp;
+            if (static::$timestamps) {
+                $this->attributes['updated_at'] = $timestamp;
+            }
+
+            $this->original = $this->attributes;
             $this->exists = false;
             return true;
         }
@@ -249,12 +272,29 @@ abstract class Model
 
     public function restore(): bool
     {
-        if (!static::$softDeletes || !$this->exists) {
+        if (!static::$softDeletes || !$this->getKey()) {
             return false;
         }
 
-        $this->attributes[static::$deletedAtColumn] = null;
-        return $this->save();
+        $attributes = [static::$deletedAtColumn => null];
+
+        if (static::$timestamps) {
+            $timestamp = $this->freshTimestamp();
+            $this->setUpdatedAt($timestamp);
+            $attributes['updated_at'] = $timestamp;
+        }
+
+        $restored = static::withTrashed()
+            ->where(static::$primaryKey, '=', $this->getKey())
+            ->update($attributes);
+
+        if ($restored) {
+            $this->attributes[static::$deletedAtColumn] = null;
+            $this->original = $this->attributes;
+            $this->exists = true;
+        }
+
+        return (bool) $restored;
     }
 
     public static function updateById($id, array $data): bool
@@ -335,6 +375,28 @@ abstract class Model
         }
 
         return $this->relations[$method] = $relation->getResults();
+    }
+
+    public function setRelation(string $relation, mixed $value): static
+    {
+        $this->relations[$relation] = $value;
+
+        return $this;
+    }
+
+    public function getRelation(string $relation): mixed
+    {
+        return $this->relations[$relation] ?? null;
+    }
+
+    public function relationLoaded(string $relation): bool
+    {
+        return array_key_exists($relation, $this->relations);
+    }
+
+    public function unsetRelation(string $relation): void
+    {
+        unset($this->relations[$relation]);
     }
 
     /**
