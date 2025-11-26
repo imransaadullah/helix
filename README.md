@@ -1,5 +1,9 @@
 # Helix
 
+![PHP Version](https://img.shields.io/badge/PHP-8.2%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Tests](https://img.shields.io/badge/tests-passing-brightgreen)
+
 Helix is a modern PHP library designed to simplify web application development by providing a robust set of tools and utilities for common tasks. It focuses on providing a modular, multi-tenant application framework with strong emphasis on security and flexibility.
 
 ## Features

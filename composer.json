@@ -6,6 +6,7 @@
         "php": "^8.2",
         "ext-json": "*",
         "psr/http-message": "^2.0",
+        "psr/http-factory": "^1.0",
         "psr/http-server-middleware": "^1.0",
         "psr/container": "^2.0",
         "psr/simple-cache": "^3.0"
