@@ -6,6 +6,17 @@
 
 Helix is a modern PHP library designed to simplify web application development by providing a robust set of tools and utilities for common tasks. It focuses on providing a modular, multi-tenant application framework with strong emphasis on security and flexibility.
 
+## Quick Start
+
+```php
+use Helix\Core\Container\HelixContainer;
+use Helix\Routing\Router;
+use Helix\Http\Response;
+
+$router = new Router(new HelixContainer());
+$router->get('/', fn() => new Response(200, ['Hello, Helix!']));
+```
+
 ## Features
 
 - **Plugin Architecture**: Dynamic functionality extensions
