@@ -19,6 +19,7 @@ class Uri implements UriInterface
         'imap' => 143,
         'pop' => 110,
         'ldap' => 389,
+        'file' => null, // file:// scheme has no port
     ];
 
     private string $scheme = '';
@@ -247,14 +248,21 @@ class Uri implements UriInterface
     private function filterHost(string $host): string
     {
         $host = strtolower($host);
-        
-        // Remove brackets from IPv6 addresses
+
+        // Handle IPv6 addresses - keep brackets for storage
         if (strpos($host, '[') === 0 && substr($host, -1) === ']') {
-            $host = substr($host, 1, -1);
+            // Validate IPv6 address inside brackets
+            $ipv6 = substr($host, 1, -1);
+            if ($ipv6 !== '' && !filter_var($ipv6, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                throw new InvalidArgumentException(
+                    sprintf('Invalid IPv6 host "%s"', $host)
+                );
+            }
+            return $host; // Return with brackets
         }
-        
-        // Validate host (simple validation - consider using filter_var for more strict validation)
-        if ($host !== '' && !preg_match('/^([a-z0-9\-._~%!$&\'()*+,;=]+|\[[a-f0-9:.]+\])$/i', $host)) {
+
+        // Validate regular host (not IPv6)
+        if ($host !== '' && !preg_match('/^[a-z0-9\-._~%!$&\'()*+,;=]+$/i', $host)) {
             throw new InvalidArgumentException(
                 sprintf('Invalid host "%s"', $host)
             );
@@ -401,14 +409,16 @@ class Uri implements UriInterface
             }
             // E. Move first path segment to result
             else {
-                $pos = strpos($path, '/');
+                $pos = strpos($path, '/', 1); // Start searching from position 1 to find next slash
                 if ($pos === false) {
-                    $pos = strlen($path);
+                    // No more slashes, take the rest of the path
+                    $result .= $path;
+                    $path = '';
+                } else {
+                    $segment = substr($path, 0, $pos);
+                    $result .= $segment;
+                    $path = substr($path, $pos);
                 }
-                
-                $segment = substr($path, 0, $pos);
-                $result .= $segment;
-                $path = substr($path, $pos);
             }
         }
         

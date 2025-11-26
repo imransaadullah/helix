@@ -99,9 +99,9 @@ class Response implements ResponseInterface
         $this->protocolVersion = $this->filterProtocolVersion($version);
         
         if ($body !== null && !$body instanceof StreamInterface) {
-            $body = new Stream(Stream::createFromString((string)$body));
+            $body = Stream::createFromString((string)$body);
         }
-        $this->body = $body ?? new Stream(Stream::createFromString(''));
+        $this->body = $body ?? Stream::createFromString('');
         
         $this->setHeaders($headers);
     }

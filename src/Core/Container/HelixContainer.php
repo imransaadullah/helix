@@ -121,10 +121,11 @@ final class HelixContainer implements ContainerInterface
                     : 'Closure');
         }
 
-        return $reflection->invokeArgs(
-            is_array($callable) ? $callable[0] : null,
-            array_values($parameters)
-        );
+        if (is_array($callable)) {
+            return $reflection->invokeArgs($callable[0], array_values($parameters));
+        }
+        
+        return $reflection->invokeArgs(array_values($parameters));
     }
 
     public function when(string $requestingClass): ContextualBindingBuilder {

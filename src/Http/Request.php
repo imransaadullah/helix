@@ -23,7 +23,7 @@ class Request implements ServerRequestInterface
     private UriInterface $uri;
     private string $protocolVersion = '1.1';
     private StreamInterface $body;
-    private Session $session;
+    private ?Session $session = null;
     private ?CsrfToken $csrfToken = null;
     private ?string $requestTarget = null;
 
@@ -39,13 +39,11 @@ class Request implements ServerRequestInterface
         $this->uploadedFiles = $this->normalizeFiles($uploadedFiles ?: $_FILES);
         $this->cookieParams = $cookieParams ?: $_COOKIE;
         $this->queryParams = $queryParams ?: $_GET;
-        $this->headers = $this->normalizeHeaders(getallheaders() ?: []);
+        $this->headers = $this->extractHeaders();
         $this->body = $body ?? $this->createStreamFromInput();
         $this->method = strtoupper($this->serverParams['REQUEST_METHOD'] ?? 'GET');
         $this->uri = $this->createUri();
         $this->parsedBody = $this->parseBody($parsedBody);
-        $this->session = new Session();
-        $this->csrfToken = new CsrfToken($this->session);
     }
 
     /* PSR-7 Methods */
@@ -297,17 +295,23 @@ class Request implements ServerRequestInterface
 
     public function csrfToken(): CsrfToken
     {
+        if ($this->csrfToken === null) {
+            $this->csrfToken = new CsrfToken($this->session());
+        }
         return $this->csrfToken;
     }
 
     public function validateCsrfToken(?string $token = null): bool
     {
         $token = $token ?? $this->parsedBody['_csrf'] ?? $this->headers['x-csrf-token'][0] ?? null;
-        return $this->csrfToken->validate($token);
+        return $this->csrfToken()->validate($token);
     }
 
     public function session(): Session
     {
+        if ($this->session === null) {
+            $this->session = new Session();
+        }
         return $this->session;
     }
 
@@ -365,6 +369,31 @@ class Request implements ServerRequestInterface
         return $normalized;
     }
 
+    private function extractHeaders(): array
+    {
+        $headers = [];
+
+        // Try getallheaders() first (works in Apache/nginx with PHP-FPM)
+        if (function_exists('getallheaders')) {
+            $headers = getallheaders() ?: [];
+        }
+
+        // Extract headers from $_SERVER (works in CLI/testing)
+        foreach ($this->serverParams as $key => $value) {
+            if (strpos($key, 'HTTP_') === 0) {
+                // Convert HTTP_CONTENT_TYPE to Content-Type
+                $headerName = str_replace('_', '-', substr($key, 5));
+                $headers[$headerName] = $value;
+            } elseif (in_array($key, ['CONTENT_TYPE', 'CONTENT_LENGTH', 'CONTENT_MD5'])) {
+                // These special headers don't have HTTP_ prefix
+                $headerName = str_replace('_', '-', $key);
+                $headers[$headerName] = $value;
+            }
+        }
+
+        return $this->normalizeHeaders($headers);
+    }
+
     private function normalizeHeaders(array $headers): array
     {
         $normalized = [];
@@ -395,17 +424,35 @@ class Request implements ServerRequestInterface
 
     private function createStreamFromInput(): StreamInterface
     {
+        // In CLI/test environments, php://input may block. Use memory stream instead.
+        if (PHP_SAPI === 'cli') {
+            return Stream::createFromString('');
+        }
         return new Stream(fopen('php://input', 'r'));
     }
 
     private function createUri(): UriInterface
     {
+        $requestUri = $this->serverParams['REQUEST_URI'] ?? '/';
+
+        // Split REQUEST_URI into path and query string
+        $path = $requestUri;
+        $queryString = '';
+
+        if (($pos = strpos($requestUri, '?')) !== false) {
+            $path = substr($requestUri, 0, $pos);
+            $queryString = substr($requestUri, $pos + 1);
+        }
+
+        // Use QUERY_STRING if available (more reliable), otherwise use extracted query
+        $queryString = $this->serverParams['QUERY_STRING'] ?? $queryString;
+
         return new Uri(
             ($this->serverParams['HTTPS'] ?? 'off') === 'on' ? 'https' : 'http',
             $this->serverParams['HTTP_HOST'] ?? 'localhost',
             $this->serverParams['SERVER_PORT'] ?? null,
-            $this->serverParams['REQUEST_URI'] ?? '/',
-            $this->serverParams['QUERY_STRING'] ?? ''
+            $path,
+            $queryString
         );
     }
 }

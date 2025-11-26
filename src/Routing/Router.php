@@ -133,10 +133,8 @@ class Router
 
             // Create and process middleware pipeline
             $pipeline = new Pipeline($this->container, $middlewares);
-            $response = $pipeline->process(
-                $request,
-                fn($request) => $this->callHandler($route['handler'], $request)
-            );
+            $pipeline->then(fn($request) => $this->callHandler($route['handler'], $request));
+            $response = $pipeline->process($request);
 
             return $this->prepareResponse($response, $request);
 
@@ -163,9 +161,12 @@ class Router
         }
 
         // Check parameterized routes
-        foreach ($this->getCompiledRoutes()[$method] as $route) {
-            if ($params = $this->matchCompiledRoute($route['pattern'], $path)) {
-                return array_merge($route, ['params' => $params]);
+        $compiledRoutes = $this->getCompiledRoutes();
+        if (isset($compiledRoutes[$method])) {
+            foreach ($compiledRoutes[$method] as $route) {
+                if ($params = $this->matchCompiledRoute($route['pattern'], $path)) {
+                    return array_merge($route, ['params' => $params]);
+                }
             }
         }
 
@@ -175,7 +176,7 @@ class Router
             throw new MethodNotAllowedException($allowedMethods);
         }
 
-        throw new RouteNotFoundException("No route found for {$method} {$path}");
+        throw new \Helix\Core\Exceptions\RouteNotFoundException("No route found for {$method} {$path}");
     }
 
     /**
